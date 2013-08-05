@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+    <script type="text/javascript" src="http://vp8.dev/js/api.js"></script>
+    <script type="text/javascript" src="http://vp8.dev/js/core.js"></script>
+	<script type="text/javascript" src="jsvideo.js"></script>
+	<script type="text/javascript">
+		function changeVolume(element) {
+			var volume = element.value;
+			var fraction = parseInt(element.value) / parseInt(element.max);
+			player.volume(fraction);
+		}
+	</script>
+</head>
+<body>
+<div id="player"></div>
+<br/>
+<input type="button" onclick="player.load()" value="Load"/>
+<input type="button" onclick="player.play()" value="Play"/>
+<input type="button" onclick="player.pause()" value="Pause"/>
+<input type="button" onclick="player.currentTime(20)" value="Set current time"/>
+<input type="range" min="0" max="100" value="100" onchange="changeVolume(this);">
+
+<div style="border: 1px solid black; width: 300px; height: 10px;position: relative;">
+	<div id="load-progress" style="background: #ff0; height: 10px;position: absolute;"></div>
+	<div id="play-progress" style="background: #f0f; height: 10px;position: absolute;"></div>
+</div>
+<script type="text/javascript">
+	var player = new JSVideo('video.html', 720, 320, 'player');
+</script>
+</body>
+</html>

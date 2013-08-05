@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+		"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<title>VP8 - WebM JavaScript Decoder for every browser</title>
+	<style>
+			/* MetaWebPro font family licensed from fontshop.com. WOFF-FTW! */
+		@font-face {
+			font-family: 'MetaBlack';
+			src: url('http://mozcom-cdn.mozilla.net/img/fonts/MetaWebPro-Black.eot');
+			src: local('☺'), url('http://mozcom-cdn.mozilla.net/img/fonts/MetaWebPro-Black.woff') format('woff');
+			font-weight: bold;
+		}
+	</style>
+	<style type="text/css">
+		body {
+			font: bold 18px/28px MetaBlack, Arial, sans-serif;
+			color: #6D7581;
+		}
+
+		h2 {
+			font: bold 24px/28px MetaBlack, Arial, sans-serif;
+			color: #6D7581;
+		}
+
+		input {
+			font: normal 14px "Arial", sans-serif;
+			padding: 1px;
+			color: #6D7581;
+		}
+	</style>
+	<script type="text/javascript" src="video_data.js"></script>
+	<script type="text/javascript" src="http://vp8.dev/js/ajax.js"></script>
+	<script type="text/javascript" src="http://vp8.dev/js/script.js"></script>
+	<script type="text/javascript" src="http://vp8.dev/js/api.js"></script>
+	<script type="text/javascript" src="http://vp8.dev/js/core.js"></script>
+	<script type="text/javascript">
+
+		function webmfile (filename) {
+			isActive = true;
+			disabledbuttons();
+			//readfile(onFileLoaded1,filename);
+			loadFile(filename, onFileLoaded);
+		}
+
+		var Base64Binary = {
+			_keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+			/* will return a  Uint8Array type */
+			decodeArrayBuffer: function (input) {
+				var bytes = (input.length / 4) * 3;
+				var ab = new ArrayBuffer(bytes);
+				this.decode(input, ab);
+
+				return ab;
+			},
+
+			decode: function (input, arrayBuffer) {
+				//get last chars to see if are valid
+				var lkey1 = this._keyStr.indexOf(input.charAt(input.length - 1));
+				var lkey2 = this._keyStr.indexOf(input.charAt(input.length - 2));
+
+				var bytes = (input.length / 4) * 3;
+				if (lkey1 == 64) {
+					bytes--;
+				} //padding chars, so skip
+				if (lkey2 == 64) {
+					bytes--;
+				} //padding chars, so skip
+
+				var uarray;
+				var chr1, chr2, chr3;
+				var enc1, enc2, enc3, enc4;
+				var i = 0;
+				var j = 0;
+
+				if (arrayBuffer) {
+					uarray = new Uint8Array(arrayBuffer);
+				}
+				else {
+					uarray = new Uint8Array(bytes);
+				}
+
+				input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+				for (i = 0; i < bytes; i += 3) {
+					//get the 3 octects in 4 ascii chars
+					enc1 = this._keyStr.indexOf(input.charAt(j++));
+					enc2 = this._keyStr.indexOf(input.charAt(j++));
+					enc3 = this._keyStr.indexOf(input.charAt(j++));
+					enc4 = this._keyStr.indexOf(input.charAt(j++));
+
+					chr1 = (enc1 << 2) | (enc2 >> 4);
+					chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+					chr3 = ((enc3 & 3) << 6) | enc4;
+
+					uarray[i] = chr1;
+					if (enc3 != 64) {
+						uarray[i + 1] = chr2;
+					}
+					if (enc4 != 64) {
+						uarray[i + 2] = chr3;
+					}
+				}
+
+				return uarray;
+			}
+		}
+
+		function getAndDraw () {
+			setTimeout(function () {
+				var imageData;
+				if (imageData = decoder.getFrame()) {
+					vpximg2canvas(imageData);
+					getAndDraw();
+				}
+			}, 0);
+		}
+
+		var decoder;
+		function play () {
+			var data = videoData.substr(0, videoData.length / 2);
+			var uInt8Array = Base64Binary.decode(data);
+			decoder = new WebMDecoder(uInt8Array);
+
+			getAndDraw();
+		}
+
+		function play2 () {
+			//var data = videoData.substr(0, videoData.length / 2);
+			var uInt8Array = Base64Binary.decode(videoData);
+			//var decoder = new WebMDecoder(uInt8Array);
+			decoder.setData(uInt8Array);
+
+			getAndDraw();
+		}
+
+		var canvas, context;
+		var output;
+		var outputData;
+		var R, G, B;
+		var pos, outputData_pos;
+		var firsttime = true;
+        var ft = true;
+		var plane;
+		var planeY_off, planeU_off, planeV_off;
+		var stride_UV_off, stride_Y_h_off, stride_UV_h_off, stride_RGBA_off;
+
+		function vpximg2canvas (img) {
+			if (firsttime) {
+				canvas = document.getElementById("vpximage"),
+						context = canvas.getContext("2d");
+
+				yuvheight = img.h;
+				yuvwidth = img.w;
+				height = img.d_h;
+				width = img.d_w;
+
+				//Draw YUV
+				canvas.height = height;
+				canvas.width = width;
+
+				output = context.createImageData(canvas.width, canvas.height);
+				outputData = output.data;
+				planeY_off = img.planes_off[0];
+				planeU_off = img.planes_off[1];
+				planeV_off = img.planes_off[2];
+				firsttime = false;
+			}
+			plane = img.planes[0];
+
+			for (var h = 0; h < height; h++) {
+				stride_Y_h_off = (yuvwidth) * h;
+				stride_UV_h_off = (yuvwidth >> 1) * (h >> 1);
+				stride_RGBA_off = (width << 2) * h;
+				for (var w = 0; w < width; w++) {
+					Y = plane[planeY_off + w + stride_Y_h_off];
+					stride_UV_off = (w >> 1) + stride_UV_h_off;
+					U = (plane[planeU_off + stride_UV_off]);// - 128;
+					V = (plane[planeV_off + stride_UV_off]);// - 128;
+					//alert(Y+' '+U+' '+V+' ');
+					/*R =  (Y + 1.371*V);
+					 G =  (Y - 0.698*V - 0.336*U);
+					 B =  (Y + 1.732*U);*/
+
+					/*R = Y + (1.4075 * (V - 128));
+					 G = Y - (0.3455 * (U - 128) - (0.7169 * (V - 128)));
+					 B = Y + (1.7790 * (U - 128));*/
+
+					R = Y + 1.13983 * (V - 128);
+					G = Y - 0.39465 * (U - 128) - 0.58060 * (V - 128);
+					B = Y + 2.03211 * (U - 128);
+
+					outputData_pos = (w << 2) + stride_RGBA_off;
+					outputData[0 + outputData_pos] = R;
+					outputData[1 + outputData_pos] = G;
+					outputData[2 + outputData_pos] = B;
+					outputData[3 + outputData_pos] = 255;
+
+				}
+				;
+			}
+
+
+            if (ft) {
+                ft = false;
+                console.log(outputData[256] + ',' + outputData[257] + ',' + outputData[258]);
+            }
+			context.putImageData(output, 0, 0);
+
+		}</script>
+
+</head>
+
+<body style="font:Arial, Helvetica, sans-serif">
+<h3>VP8 - WebM JavaScript Decoder for every browser</h3>
+
+<p>Example Files:</p>
+
+<p>
+	<input type="button" value="webm/sync_def_PF-0_AF-33-BG_FF-33.webm" onclick="webmfile(this.value)"/>
+	<input type="button" value="webm/The_Google_Story.webm" onclick="webmfile(this.value)"/>
+	<input type="button" value="play()" onclick="play();"/>
+	<input type="button" value="play2()" onclick="play2();"/>
+</p>
+<canvas id="vpximage" style="border:1px solid black"></canvas>
+<div style="font-size:18px">Timecode:
+	<div id="timecode"></div>
+</div>
+<div style="font-size:18px">Frame:
+	<div id="frame"></div>
+</div>
+<div style="font-size:18px">Render:
+	<div id="render"></div>
+</div>
+<br/>
+<br/>
+<br/>
+VP8 - WebM JavaScript Decoder for every browser - This script work with Internet Explorer 9, Safari 4/5, Google Chrome,
+Mozilla Firefox, Opera, IPhone/IPad (iOS) & Android - implemented by <a href="http://webpjs.appspot.com">Dominik
+	Homberger</a>
+</body>
+</html>

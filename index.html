@@ -1,0 +1,123 @@
+<html>
+<head>
+	<title>Drawing An Image</title>
+	<!--<script type="text/javascript" src="frames.js"></script>-->
+	<script type="text/javascript">
+		var frameImages = [];
+		var currentFrame;
+		function init () {
+			for (var i = 0; i < frames.length; i++) {
+
+				/*frameImages[i].onload = function() {
+				 console.dir(i + ' loaded');
+				 };*/
+			}
+		}
+
+		function drawFrame (frameNo) {
+			var can = document.getElementById("can");
+			var ctx = can.getContext("2d");
+			ctx.drawImage(frameImages[frameNo], 0, 0);
+		}
+
+		function animate () {
+			if (currentFrame < 425) {
+				drawFrame(currentFrame);
+				currentFrame++;
+
+			}
+		}
+
+		function startAnimation () {
+			currentFrame = 0;
+			setInterval(animate, 40);
+		}
+
+		var req, trigger, transferCompleted = false;
+		function loadFile () {
+
+			req = new XMLHttpRequest();
+
+			req.addEventListener("progress", updateProgress, false);
+			req.addEventListener("load", transferComplete, false);
+			req.addEventListener("error", transferFailed, false);
+			req.addEventListener("abort", transferCanceled, false);
+			req
+
+			trigger = setInterval(processData, 100);
+
+			req.open('GET', 'frames.txt', false);
+			req.send();
+
+		}
+
+		function processData () {
+			if (req.readyState > 2) {
+				var totalBytes = req.getResponseHeader('Content-length');
+				var dlBytes = req.responseText.length;
+				console.log(dlBytes);
+				/*(totalBytes > 0) ?
+						progressElem.html(Math.round((dlBytes
+								/ totalBytes) * 100) +
+								"%") :
+						progressElem.html(Math.round(dlBytes /
+								1024) + "K");*/
+			}
+		}
+
+		// progress on transfers from the server to the client (downloads)
+		function updateProgress (evt) {
+			if (evt.lengthComputable) {
+				var percentComplete = evt.loaded / evt.total;
+			} else {
+				// Unable to compute progress information since the total size is unknown
+			}
+		}
+
+		function transferComplete (evt) {
+			clearInterval(trigger);
+			console.log("The transfer is complete.");
+		}
+
+		function transferFailed (evt) {
+			console.log("An error occurred while transferring the file.");
+		}
+
+		function transferCanceled (evt) {
+			console.log("The transfer has been canceled by the user.");
+		}
+
+
+		var xhr = new XMLHttpRequest();
+		var url = "frames.txt";
+		xhr.open("GET", url, true);
+		xhr.send();
+
+		// Define a method to parse the partial response chunk by chunk
+		var last_index = 0;
+		function parse() {
+			var curr_index = xhr.responseText.length;
+			if (last_index == curr_index) return; // No new data
+			var s = xhr.responseText.substring(last_index, curr_index);
+			last_index = curr_index;
+			console.log(s);
+		}
+
+		// Check for new content every 5 seconds
+		var interval = setInterval(parse, 100);
+
+		// Abort after 25 seconds
+		setTimeout(function(){
+			clearInterval(interval);
+			parse();
+			xhr.abort();
+		}, 25000);
+	</script>
+</head>
+<body onload="init()">
+<canvas id="can" height="320" width="720"></canvas>
+<br/>
+<input type="button" onclick="startAnimation()" value="Animate"/>
+<input type="button" onclick="loadFile()" value="Load"/>
+</body>
+</html>

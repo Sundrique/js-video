@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Sound</title>
+	<script type="text/javascript" src="sound.js"></script>
+	<script type="text/javascript">
+		var Base64Binary = {
+			_keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+			/* will return a  Uint8Array type */
+			decodeArrayBuffer: function (input) {
+				var bytes = (input.length / 4) * 3;
+				var ab = new ArrayBuffer(bytes);
+				this.decode(input, ab);
+
+				return ab;
+			},
+
+			decode: function (input, arrayBuffer) {
+				//get last chars to see if are valid
+				var lkey1 = this._keyStr.indexOf(input.charAt(input.length - 1));
+				var lkey2 = this._keyStr.indexOf(input.charAt(input.length - 2));
+
+				var bytes = (input.length / 4) * 3;
+				if (lkey1 == 64) bytes--; //padding chars, so skip
+				if (lkey2 == 64) bytes--; //padding chars, so skip
+
+				var uarray;
+				var chr1, chr2, chr3;
+				var enc1, enc2, enc3, enc4;
+				var i = 0;
+				var j = 0;
+
+				if (arrayBuffer)
+					uarray = new Uint8Array(arrayBuffer);
+				else
+					uarray = new Uint8Array(bytes);
+
+				input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+				for (i = 0; i < bytes; i += 3) {
+					//get the 3 octects in 4 ascii chars
+					enc1 = this._keyStr.indexOf(input.charAt(j++));
+					enc2 = this._keyStr.indexOf(input.charAt(j++));
+					enc3 = this._keyStr.indexOf(input.charAt(j++));
+					enc4 = this._keyStr.indexOf(input.charAt(j++));
+
+					chr1 = (enc1 << 2) | (enc2 >> 4);
+					chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+					chr3 = ((enc3 & 3) << 6) | enc4;
+
+					uarray[i] = chr1;
+					if (enc3 != 64) uarray[i + 1] = chr2;
+					if (enc4 != 64) uarray[i + 2] = chr3;
+				}
+
+				return uarray;
+			}
+		}
+
+		var decodedFrames = [];
+		var decodedCount = 0;
+		var context = new webkitAudioContext();
+		var previousDuration = 0;
+
+		function Float32Concat(first, second)
+		{
+			var firstLength = first.length;
+			var result = new Float32Array(firstLength + second.length);
+
+			result.set(first);
+			result.set(second, firstLength);
+
+			return result;
+		}
+
+		function appendBuffer( buffer1, buffer2 ) {
+			var tmp = new Float32Array( buffer1.length  + buffer2.length);
+			tmp.set( new Float32Array( buffer1 ), 0 );
+			tmp.set( new Float32Array( buffer2 ), buffer1.length / 4);
+			return tmp.buffer;
+		}
+
+		var audioBuffer;// = new Uint8Array();
+		var audioData1 = new Float32Array();
+		var audioData2 = new Float32Array();
+		function decode() {
+			for(var i = 0; i < soundFrames.length; i++) {
+				/*var newArray = Base64Binary.decode(soundFrames[i]);
+				var tmpArray = new Uint8Array(uintArray.length + newArray.length);
+				tmpArray.set(uintArray);
+				tmpArray.set(newArray, uintArray.length);
+				uintArray = tmpArray;*/
+				//console.log(uintArray.length);
+				context.decodeAudioData(
+					Base64Binary.decodeArrayBuffer(soundFrames[i]),
+					(function(buffer) {
+						var frameNo = i;
+						return function(buffer) {
+							/*if (audioBuffer) {
+								audioBuffer = appendBuffer(audioBuffer, buffer);
+							} else {
+								audioBuffer = buffer;
+							}*/
+							var newData1 = buffer.getChannelData(0);
+							var newData2 = buffer.getChannelData(1);
+							audioData1 = Float32Concat(audioData1, newData1);
+							audioData2 = Float32Concat(audioData2, newData2);
+							decodedFrames[frameNo] = [previousDuration, buffer];
+							decodedCount++;
+							previousDuration += buffer.duration;
+							if (decodedCount === soundFrames.length) {
+								console.log('decoded');
+								console.log(audioData1.length);
+								//play();
+								/*var tmpArray = new Float32Array(decodedFrames[0][1].length);
+								tmpArray.set(new Float32Array(decodedFrames[0][1]));
+								console.dir(tmpArray[0]);*/
+							}
+						}
+					})(),
+					function() {
+						//do nothing
+					}
+				);
+			}
+
+
+			/*context.decodeAudioData(
+				uintArray.buffer,
+				function(buffer) {
+					console.log(buffer.length);
+					var source = context.createBufferSource();
+					source.buffer = buffer;
+					source.connect(context.destination);
+					source.noteOn(0);
+				},
+				function() {
+					//do nothing
+				}
+			);*/
+		}
+
+		var compressor = context.createDynamicsCompressor();
+		compressor.connect(context.destination);
+
+		var node = context.createJavaScriptNode(256, 2, 2);
+		function play() {
+			/*var source = context.createBufferSource();
+			source.buffer = context.createBuffer(audioBuffer.buffer, false);
+			source.connect(context.destination);
+			source.noteOn(0);*/
+			/*context.decodeAudioData(uintArray.buffer
+			var previousTime = (new Date).getTime();
+			//var timeDelta = 0;*/
+			/*for(var j = 0; j < decodedFrames.length; j++) {
+				var source = context.createBufferSource();
+				source.buffer = decodedFrames[j][1];
+				source.connect(context.destination);//compressor);
+				//source.noteOn(decodedFrames[j][0].toPrecision(2));
+				//timeDelta = (new Date).getTime() - previousTime;
+				source.noteOn(j);//decodedFrames[j][0]);//decodedFrames[j][0] - timeDelta);
+				//console.log(j - decodedFrames[j][0]);
+				//previousTime = (new Date).getTime();
+
+			}*/
+
+			//jsNode.connect(context.destination);
+
+			/*var source = context.createBufferSource();
+			source.buffer = decodedFrames[0][1];
+			source.connect(jsNode);
+			source.noteOn(0);*/
+
+			var frameNumber = 0;
+			node.onaudioprocess = function(e) {
+				var data1 = e.outputBuffer.getChannelData(0);
+				var data2 = e.outputBuffer.getChannelData(1);
+				for (var i = 0; i < data1.length; i++) {
+					frameNumber++;
+
+					if (frameNumber < audioData1.length) {
+						data1[i] = audioData1[frameNumber];
+						data2[i] = audioData2[frameNumber];
+					} else {
+						pause();
+					}
+				}
+			};
+			node.connect(context.destination);
+
+			//console.log(audioData[250000]);
+
+			//console.log(audioData.length);
+		}
+
+		function pause() {
+			node.disconnect();
+		}
+	</script>
+</head>
+<body>
+	<input type="button" value="Decode" onclick="decode();" />
+	<input type="button" value="Play" onclick="play();" />
+	<input type="button" value="Pause" onclick="pause();" />
+</body>
+</html>
